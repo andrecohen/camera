@@ -1,72 +1,86 @@
 <html>
 	<head>
 		<meta name="apple-mobile-web-app-capable" content="yes" />
+		<meta name="viewport" content="width=device-width; initial-scale=1.0; maximum-scale=1.0; user-scalable=0;"/>
 		<style>
+			body {
+				background: black;
+			}
+			#camera {
+				width: 100%;
+				display: block;
+				margin-bottom: 24px;
+			}
+			#video {
+				display: block;
+				width: 100%;
+			}
 		</style>
 	</head>
 	
 	<body>
+		
 		<select id="camera"></select>
-
 		<video id="video" width="640" height="480" autoplay loop muted playsinline></video>
-		<canvas id="canvas" width="640" height="480"></canvas>
 
 		<script src="https://code.jquery.com/jquery-3.5.0.min.js" integrity="sha256-xNzN2a4ltkB44Mc/Jz3pT4iU1cmeR0FkXs4pru/JxaQ=" crossorigin="anonymous"></script>
+		
 		<script>
 			function populateCamera(devices) {
+				var found = 0;
 				$(devices).each(function(i, device){
-					if(device.kind == 'videoinput'){
+					console.log(device)
+					if(device.kind == 'videoinput' && device.label != ''){
+						found += 1;
 						$('#camera').append('<option value="'+device.deviceId+'">'+device.label+'</option>')
 					}
 				})
+				if(found == 0) {
+					setTimeout(queryCamera, 500)
+				}
 			}
 
-			// Put event listeners into place
-			window.addEventListener("DOMContentLoaded", function() {
-				// Grab elements, create settings, etc.
-				var canvas = document.getElementById('canvas');
-				var context = canvas.getContext('2d');
+			function queryCamera(select) {
+				console.log(select)
+				navigator.mediaDevices.enumerateDevices().then(populateCamera);	
+			}
+
+			function updateCamera() {
 				var video = document.getElementById('video');
-				
-				navigator.mediaDevices.enumerateDevices().then(populateCamera)
 
-				$('#camera').change(function(){
-					console.log('Change')
-				})
+				if($('#camera').val()) {
+					var mediaConfig = {
+						video: {
+							width: {ideal: 1280},
+							height: {ideal: 720},
+							deviceId: $('#camera').val()
+						}
+					};
+				}else{
+					var mediaConfig = {video: true};
+				}
 
-				var mediaConfig = {
-					video: true
-				};
-				
 				var errBack = function(e) {
-					console.log('An error has occurred!', e)
+					alert('An error occurred setting the camera');
 				};
-				
+
 				// Put video listeners into place
 				if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
 					navigator.mediaDevices.getUserMedia(mediaConfig).then(function(stream) {
-						//video.src = window.URL.createObjectURL(stream);
+						var settings = stream.getVideoTracks()[0].getSettings();
+						video.setAttribute('width', settings.width);
+						video.setAttribute('height', settings.height);
 						video.srcObject = stream;
 						video.play();
 					});
 				}
-				/* Legacy code below! */
-				else if (navigator.getUserMedia) { // Standard
-					navigator.getUserMedia(mediaConfig, function(stream) {
-						video.src = stream;
-						video.play();
-					}, errBack);
-				} else if (navigator.webkitGetUserMedia) { // WebKit-prefixed
-					navigator.webkitGetUserMedia(mediaConfig, function(stream) {
-						video.src = window.webkitURL.createObjectURL(stream);
-						video.play();
-					}, errBack);
-				} else if (navigator.mozGetUserMedia) { // Mozilla-prefixed
-						navigator.mozGetUserMedia(mediaConfig, function(stream) {
-						video.src = window.URL.createObjectURL(stream);
-						video.play();
-					}, errBack);
-				}
+			}
+
+			// Put event listeners into place
+			window.addEventListener('DOMContentLoaded', function() {
+				queryCamera();
+				updateCamera();
+				$('#camera').change(updateCamera);
 			}, false);
 		</script>
 	</body>
